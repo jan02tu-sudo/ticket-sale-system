@@ -1,0 +1,122 @@
+### Get all events
+GET http://localhost:8080/events
+Accept: application/json
+
+
+### Get event with ID 1
+GET http://localhost:8080/events/1
+Accept: application/json
+
+
+### Create Event 1
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Event 1",
+  "date": "2026-11-20T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 1000,
+  "availableTickets": 1000,
+  "ticketPrice": 49.90
+}
+
+
+### Create Event 2
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Event 2",
+  "date": "2026-12-05T20:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 5000,
+  "availableTickets": 5000,
+  "ticketPrice": 79.90
+}
+
+
+### Update event with ID 1
+PUT http://localhost:8080/events/1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Event 1",
+  "date": "2026-11-21T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 1200,
+  "availableTickets": 1100,
+  "ticketPrice": 59.90
+}
+
+
+### Delete event with ID 1
+DELETE http://localhost:8080/events/1
+
+
+### Validation test - invalid totalTickets
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Invalid Event",
+  "date": "2026-11-20T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 0,
+  "availableTickets": 0,
+  "ticketPrice": 49.90
+}
+
+
+### Validation test - availableTickets greater than totalTickets
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Invalid Oversized Availability",
+  "date": "2026-11-20T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 100,
+  "availableTickets": 150,
+  "ticketPrice": 49.90
+}
+
+
+### Validation test - negative availableTickets
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Invalid Negative Tickets",
+  "date": "2026-11-20T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 100,
+  "availableTickets": -1,
+  "ticketPrice": 49.90
+}
+
+
+### Validation test - blank name
+POST http://localhost:8080/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "",
+  "date": "2026-11-20T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 100,
+  "availableTickets": 100,
+  "ticketPrice": 49.90
+}
+
+
+### Not found test
+GET http://localhost:8080/events/999999
+Accept: application/json
