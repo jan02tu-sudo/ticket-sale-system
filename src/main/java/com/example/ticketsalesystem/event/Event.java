@@ -12,6 +12,10 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "lock_version", nullable = false)
+    private Long version;
+
     @Column(nullable = false)
     private String name;
 

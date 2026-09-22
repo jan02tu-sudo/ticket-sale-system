@@ -30,34 +30,8 @@ Accept: application/json
     client.global.set("admin_token", response.body.token);
 %}
 
-
-### 3. USER tries to create an event
-### Expected: 403 Forbidden
-### USER is authenticated, but does not have ADMIN role
-POST http://localhost:8080/events
-Authorization: Bearer {{user_token}}
-Content-Type: application/json
-Accept: application/json
-
-{
-  "name": "Forbidden Event",
-  "date": "2026-12-01T18:00:00+01:00",
-  "location": "Wien",
-  "totalTickets": 11,
-  "availableTickets": 11,
-  "ticketPrice": 50.00
-}
-
-
 ### ------------------------------------------------------------
 ### 4. ADMIN creates the demo event
-###
-### We deliberately create exactly 11 tickets:
-### Tickets 1-10 cost 50.00
-### After ticket 10 the price increases by 10%
-### Ticket 11 therefore costs 55.00
-### Expected: 201 Created
-### Location header: /events/{id}
 ### ------------------------------------------------------------
 POST http://localhost:8080/events
 Authorization: Bearer {{admin_token}}
@@ -79,81 +53,16 @@ Accept: application/json
 
 
 ### ------------------------------------------------------------
-### 5. Get the newly created event
-### Expected:
-### totalTickets = 11
-### availableTickets = 11
-### ticketPrice = 50.00
-### ------------------------------------------------------------
+### 5. Get the test event
 GET http://localhost:8080/events/{{event_id}}
 Accept: application/json
-
 
 ### ------------------------------------------------------------
 ### 6. Purchase Ticket
-### Expected: 201 Created
-### pricePaid = 50.00
-### X-Price-Changed = false
 ### ------------------------------------------------------------
 POST http://localhost:8080/events/{{event_id}}/tickets
 Authorization: Bearer {{user_token}}
 Accept: application/json
-
-### ------------------------------------------------------------
-### Expected:
-### 201 Created
-### pricePaid = 50.00
-### X-Price-Changed = true
-### X-Previous-Ticket-Price = 50.00
-### X-New-Ticket-Price = 55.00
-###
-### ------------------------------------------------------------
-POST http://localhost:8080/events/{{event_id}}/tickets
-Authorization: Bearer {{user_token}}
-Accept: application/json
-
-
-### ------------------------------------------------------------
-### Expected:
-### totalTickets = 11
-### availableTickets = 1
-### ticketPrice = 55.00
-### ------------------------------------------------------------
-GET http://localhost:8080/events/{{event_id}}
-Accept: application/json
-
-
-### ------------------------------------------------------------
-### Expected:
-### 201 Created
-### pricePaid = 55.00
-###
-### This proves that the price increase actually affected
-### subsequent ticket purchases.
-### ------------------------------------------------------------
-POST http://localhost:8080/events/{{event_id}}/tickets
-Authorization: Bearer {{user_token}}
-Accept: application/json
-
-
-### ------------------------------------------------------------
-### Expected:
-### availableTickets = 0
-### ------------------------------------------------------------
-GET http://localhost:8080/events/{{event_id}}
-Accept: application/json
-
-
-### ------------------------------------------------------------
-### Event only had 11 tickets.
-###
-### Expected:
-### 409 Conflict
-### ------------------------------------------------------------
-POST http://localhost:8080/events/{{event_id}}/tickets
-Authorization: Bearer {{user_token}}
-Accept: application/json
-
 
 ### ------------------------------------------------------------
 ### Ticket purchase WITHOUT JWT

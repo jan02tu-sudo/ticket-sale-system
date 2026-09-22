@@ -99,10 +99,7 @@ class AuthSecurityIntegrationTest {
         mockMvc.perform(post("/events/1/tickets")).andExpect(status().isUnauthorized());
     }
 
-    private String login(
-            String username,
-            String password
-    ) throws Exception {
+    private String login(String username, String password) throws Exception {
 
         String response = mockMvc.perform(post("/login")
                         .contentType(MediaType.APPLICATION_JSON)
