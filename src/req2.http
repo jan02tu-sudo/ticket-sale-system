@@ -1,0 +1,188 @@
+### Login
+### Expected: 200 OK + JWT
+### ------------------------------------------------------------
+POST http://localhost:8080/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "user",
+  "password": "user123"
+}
+
+> {%
+    client.global.set("user_token", response.body.token);
+%}
+
+### 2. Login as ADMIN
+### Expected: 200 OK + JWT
+### ------------------------------------------------------------
+POST http://localhost:8080/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+> {%
+    client.global.set("admin_token", response.body.token);
+%}
+
+
+### 3. USER tries to create an event
+### Expected: 403 Forbidden
+### USER is authenticated, but does not have ADMIN role
+POST http://localhost:8080/events
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Forbidden Event",
+  "date": "2026-12-01T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 11,
+  "availableTickets": 11,
+  "ticketPrice": 50.00
+}
+
+
+### ------------------------------------------------------------
+### 4. ADMIN creates the demo event
+###
+### We deliberately create exactly 11 tickets:
+### Tickets 1-10 cost 50.00
+### After ticket 10 the price increases by 10%
+### Ticket 11 therefore costs 55.00
+### Expected: 201 Created
+### Location header: /events/{id}
+### ------------------------------------------------------------
+POST http://localhost:8080/events
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Vienna Gaming Event",
+  "date": "2026-12-01T18:00:00+01:00",
+  "location": "Wiener Stadthalle",
+  "totalTickets": 11,
+  "availableTickets": 11,
+  "ticketPrice": 50.00
+}
+
+> {%
+    client.global.set("event_id", response.body.id);
+%}
+
+
+### ------------------------------------------------------------
+### 5. Get the newly created event
+### Expected:
+### totalTickets = 11
+### availableTickets = 11
+### ticketPrice = 50.00
+### ------------------------------------------------------------
+GET http://localhost:8080/events/{{event_id}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### 6. Purchase Ticket
+### Expected: 201 Created
+### pricePaid = 50.00
+### X-Price-Changed = false
+### ------------------------------------------------------------
+POST http://localhost:8080/events/{{event_id}}/tickets
+Authorization: Bearer {{user_token}}
+Accept: application/json
+
+### ------------------------------------------------------------
+### Expected:
+### 201 Created
+### pricePaid = 50.00
+### X-Price-Changed = true
+### X-Previous-Ticket-Price = 50.00
+### X-New-Ticket-Price = 55.00
+###
+### ------------------------------------------------------------
+POST http://localhost:8080/events/{{event_id}}/tickets
+Authorization: Bearer {{user_token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Expected:
+### totalTickets = 11
+### availableTickets = 1
+### ticketPrice = 55.00
+### ------------------------------------------------------------
+GET http://localhost:8080/events/{{event_id}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Expected:
+### 201 Created
+### pricePaid = 55.00
+###
+### This proves that the price increase actually affected
+### subsequent ticket purchases.
+### ------------------------------------------------------------
+POST http://localhost:8080/events/{{event_id}}/tickets
+Authorization: Bearer {{user_token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Expected:
+### availableTickets = 0
+### ------------------------------------------------------------
+GET http://localhost:8080/events/{{event_id}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Event only had 11 tickets.
+###
+### Expected:
+### 409 Conflict
+### ------------------------------------------------------------
+POST http://localhost:8080/events/{{event_id}}/tickets
+Authorization: Bearer {{user_token}}
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Ticket purchase WITHOUT JWT
+###
+### Expected: 401 Unauthorized
+### ------------------------------------------------------------
+POST http://localhost:8080/events/{{event_id}}/tickets
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### Get all events
+### Expected: 200 OK
+### ------------------------------------------------------------
+GET http://localhost:8080/events
+Accept: application/json
+
+
+### ------------------------------------------------------------
+### ADMIN deletes the event
+### Expected: 204 No Content
+### ------------------------------------------------------------
+DELETE http://localhost:8080/events/{{event_id}}
+Authorization: Bearer {{admin_token}}
+
+
+### ------------------------------------------------------------
+### Verify that deleted event no longer exists
+### Expected: 404 Not Found
+### ------------------------------------------------------------
+GET http://localhost:8080/events/{{event_id}}
+Accept: application/json
