@@ -4,10 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,6 +34,8 @@ class EventControllerIntegrationTest {
 
     @Test
     void shouldCreateEvent() throws Exception {
+        String adminToken = login("admin", "admin123");
+
         String requestBody = """
                 {
                   "name": "Vienna Gaming Event",
@@ -41,7 +48,8 @@ class EventControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/events")
-                        .contentType("application/json")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(
@@ -58,6 +66,8 @@ class EventControllerIntegrationTest {
 
     @Test
     void shouldRejectEventWhenTotalTicketsIsZero() throws Exception {
+        String adminToken = login("admin", "admin123");
+
         String requestBody = """
                 {
                   "name": "Invalid Event",
@@ -70,13 +80,16 @@ class EventControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/events")
-                        .contentType("application/json")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void shouldRejectEventWhenAvailableTicketsExceedTotalTickets() throws Exception {
+        String adminToken = login("admin", "admin123");
+
         String requestBody = """
                 {
                   "name": "Invalid Event",
@@ -89,7 +102,8 @@ class EventControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/events")
-                        .contentType("application/json")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
     }
@@ -98,5 +112,31 @@ class EventControllerIntegrationTest {
     void shouldReturn404WhenEventDoesNotExist() throws Exception {
         mockMvc.perform(get("/events/999999"))
                 .andExpect(status().isNotFound());
+    }
+
+    private String login(String username, String password) throws Exception {
+        String response = mockMvc.perform(post("/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "%s",
+                                  "password": "%s"
+                                }
+                                """.formatted(username, password)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Matcher matcher = Pattern
+                .compile("\"token\"\\s*:\\s*\"([^\"]+)\"")
+                .matcher(response);
+
+        assertTrue(
+                matcher.find(),
+                "Login response did not contain a JWT: " + response
+        );
+
+        return matcher.group(1);
     }
 }
