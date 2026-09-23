@@ -32,11 +32,11 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
     UserDetailsService userDetailsService(UserRepository userRepository) {
         return username -> {
-            var user = userRepository.findByUsername(username)
-                    .orElseThrow();
+            var user = userRepository.findByUsername(username).orElseThrow();
 
             return org.springframework.security.core.userdetails.User
                     .withUsername(user.getUsername())
@@ -45,88 +45,100 @@ public class SecurityConfig {
                     .build();
         };
     }
+
     @Bean
-    AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration
-    ) throws Exception {
+    AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
 
     @Bean
-    SecretKey jwtSecretKey(
-            @Value("${ticket.jwt.secret}") String secret
-    ) {
-        return new SecretKeySpec(
-                secret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
+    SecretKey jwtSecretKey(@Value("${ticket.jwt.secret}") String secret) {
+        return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
     @Bean
     JwtEncoder jwtEncoder(SecretKey secretKey) {
-        return NimbusJwtEncoder
-                .withSecretKey(secretKey)
-                .algorithm(MacAlgorithm.HS256)
-                .build();
+        return NimbusJwtEncoder.withSecretKey(secretKey).algorithm(MacAlgorithm.HS256).build();
     }
 
     @Bean
     JwtDecoder jwtDecoder(SecretKey secretKey) {
-        return NimbusJwtDecoder
-                .withSecretKey(secretKey)
-                .macAlgorithm(MacAlgorithm.HS256)
-                .build();
+        return NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
     }
 
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authorities =
-                new JwtGrantedAuthoritiesConverter();
-        authorities.setAuthoritiesClaimName("roles");
-        authorities.setAuthorityPrefix("ROLE_");
-        JwtAuthenticationConverter converter =
-                new JwtAuthenticationConverter();
 
-        converter.setJwtGrantedAuthoritiesConverter(authorities);
+        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        authoritiesConverter.setAuthoritiesClaimName("roles");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
         return converter;
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtAuthenticationConverter jwtAuthenticationConverter
-    ) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter, SecurityExceptionHandlers securityExceptionHandlers) throws Exception {
 
-        http
-                .csrf(csrf -> csrf.disable())
-
+        http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
-
                 .authorizeHttpRequests(auth -> auth
 
+                        // H2 console
                         .requestMatchers("/h2-console/**")
                         .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/login")
+
+                        // Login is public
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/login"
+                        )
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/events/**")
+
+                        // Event reads are public
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/events/**"
+                        )
                         .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/events")
+
+                        // Only ADMIN can create events
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/events"
+                        )
                         .hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/events/**")
+
+                        // PUT is allowed for authenticated users
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/events/**"
+                        )
+                        .authenticated()
+
+                        // Only ADMIN can delete events
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/events/**"
+                        )
                         .hasRole("ADMIN")
+
+                        // Any authenticated user can buy tickets
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/events/*/tickets"
                         )
                         .authenticated()
 
+                        // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
                 )
+
                 .oauth2ResourceServer(oauth ->
                         oauth.jwt(jwt ->
                                 jwt.jwtAuthenticationConverter(
@@ -134,6 +146,20 @@ public class SecurityConfig {
                                 )
                         )
                 )
+
+                .exceptionHandling(exception ->
+                        exception
+                                .authenticationEntryPoint(
+                                        securityExceptionHandlers
+                                                .authenticationEntryPoint()
+                                )
+                                .accessDeniedHandler(
+                                        securityExceptionHandlers
+                                                .accessDeniedHandler()
+                                )
+                )
+
+                // Needed for H2 console frames
                 .headers(headers ->
                         headers.frameOptions(frame ->
                                 frame.sameOrigin()

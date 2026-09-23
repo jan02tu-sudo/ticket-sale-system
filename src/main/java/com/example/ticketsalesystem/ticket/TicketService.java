@@ -7,6 +7,7 @@ import com.example.ticketsalesystem.exception.EventSoldOutException;
 import com.example.ticketsalesystem.user.User;
 import com.example.ticketsalesystem.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -38,6 +39,10 @@ public class TicketService {
         this.priceIncreasePercent = priceIncreasePercent;
     }
 
+    @CacheEvict(
+            cacheNames = "events",
+            key = "#eventId"
+    )
     @Transactional
     public PurchaseResult purchaseTicket(
             Long eventId,
