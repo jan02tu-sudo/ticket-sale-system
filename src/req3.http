@@ -1,0 +1,152 @@
+### LOGIN USER
+POST http://localhost:8080/login
+x-tracking-id: demo-login-user
+Content-Type: application/json
+
+{
+  "username": "user",
+  "password": "user123"
+}
+
+> {%
+    client.global.set("user_token", response.body.token);
+%}
+
+
+### LOGIN ADMIN
+POST http://localhost:8080/login
+x-tracking-id: demo-login-admin
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+> {%
+    client.global.set("admin_token", response.body.token);
+%}
+
+
+### USER CREATE EVENT
+POST http://localhost:8080/events
+x-tracking-id: demo-forbidden
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "name": "Forbidden Event",
+  "date": "2026-12-01T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 11,
+  "availableTickets": 11,
+  "ticketPrice": 50.00
+}
+
+
+### ADMIN CREATE EVENT
+### 201
+POST http://localhost:8080/events
+x-tracking-id: demo-create-event
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Event1",
+  "date": "2026-12-01T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 11,
+  "availableTickets": 11,
+  "ticketPrice": 50.00
+}
+
+> {%
+    client.global.set("event_id", response.body.id);
+%}
+
+
+### GET EVENT
+### 200
+GET http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-get-event
+
+
+### GET EVENT CACHE
+### 200
+GET http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-get-event-cached
+
+
+### VALIDATION ERROR
+### 400
+POST http://localhost:8080/events
+x-tracking-id: demo-validation-error
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Event",
+  "date": "2026-12-01T18:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 0,
+  "availableTickets": 0,
+  "ticketPrice": 50.00
+}
+
+
+### UPDATE EVENT AS AUTHENTICATED USER
+### 200
+PUT http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-update-event
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "name": "Event1",
+  "date": "2026-12-01T19:00:00+01:00",
+  "location": "Wien",
+  "totalTickets": 11,
+  "availableTickets": 11,
+  "ticketPrice": 50.00
+}
+
+
+
+
+### ticket purchase 1-11
+POST http://localhost:8080/events/{{event_id}}/tickets
+x-tracking-id: demo-ticket-1
+Authorization: Bearer {{user_token}}
+
+###
+GET http://localhost:8080/events/{{event_id}}
+
+### ticket 11....
+POST http://localhost:8080/events/{{event_id}}/tickets
+x-tracking-id: demo-ticket-new-price
+Authorization: Bearer {{user_token}}
+
+
+### without jwt
+### 401
+POST http://localhost:8080/events/{{event_id}}/tickets
+x-tracking-id: demo-no-auth
+
+
+### user delete event
+### 403
+DELETE http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-delete-forbidden
+Authorization: Bearer {{user_token}}
+
+
+### admin delete event
+### 204
+DELETE http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-delete-admin
+Authorization: Bearer {{admin_token}}
+
+
+### get deleted event
+### 404
+GET http://localhost:8080/events/{{event_id}}
+x-tracking-id: demo-not-found
